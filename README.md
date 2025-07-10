@@ -34,7 +34,7 @@ A complete ESP32-based water level monitoring system with Home Assistant integra
 ## 🔧 Hardware Requirements
 
 - **ESP32 development board** (any ESP32 variant)
-- **HC-SR04 ultrasonic sensor**
+- **AJ-SR04M ultrasonic sensor**
 - **Jumper wires**
 - **Power supply** (USB or 5V)
 - **Mounting hardware** for the sensor
@@ -43,8 +43,8 @@ A complete ESP32-based water level monitoring system with Home Assistant integra
 
 | Component | ESP32 Pin | Description |
 |-----------|-----------|-------------|
-| HC-SR04 TRIG | GPIO 13 | Trigger signal |
-| HC-SR04 ECHO | GPIO 12 | Echo signal |
+| AJ-SR04M TRIG | GPIO 13 | Trigger signal |
+| AJ-SR04M ECHO | GPIO 12 | Echo signal |
 | BOOT Button | GPIO 0 | Configuration button |
 
 ## 🚀 Quick Start Guide
