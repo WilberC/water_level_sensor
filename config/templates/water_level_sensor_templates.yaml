@@ -1,0 +1,103 @@
+# Water Level Sensor Template Sensors
+# This file contains all template sensors for the water level monitoring system
+# Add this to your configuration.yaml with: !include templates/water_level_sensor_templates.yaml
+
+template:
+  - sensor:
+      # 3rd Floor Tank Template Sensors
+      - name: "3rd Floor Days Until Empty"
+        unique_id: "water_days_until_empty_3f"
+        state: >
+          {% set current_level = states('sensor.water_level_3f') | float %}
+          {% set daily_usage = states('sensor.water_level_3f') | attr('average_daily_consumption_l_day') | float %}
+          {% if daily_usage > 0 and current_level > 0 %}
+            {% set current_volume = states('sensor.water_level_3f') | attr('volume_liters') | float %}
+            {{ (current_volume / daily_usage) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+        unit_of_measurement: "days"
+        device_class: "duration"
+        
+      - name: "3rd Floor Water Usage Trend"
+        unique_id: "water_usage_trend_3f"
+        state: >
+          {% set current_usage = states('sensor.water_level_3f') | attr('hourly_consumption_l_hour') | float %}
+          {% set avg_usage = states('sensor.water_level_3f') | attr('average_daily_consumption_l_day') | float / 24 %}
+          {% if avg_usage > 0 %}
+            {% if current_usage > avg_usage * 1.5 %}
+              High
+            {% elif current_usage < avg_usage * 0.5 %}
+              Low
+            {% else %}
+              Normal
+            {% endif %}
+          {% else %}
+            Normal
+          {% endif %}
+        device_class: "enum"
+        
+      - name: "3rd Floor Leak Severity"
+        unique_id: "water_leak_severity_3f"
+        state: >
+          {% set rapid_leak = states('sensor.water_level_3f') | attr('consumption_15min_l_15min') | float %}
+          {% set moderate_leak = states('sensor.water_level_3f') | attr('consumption_30min_l_30min') | float %}
+          {% set rapid_threshold = states('input_number.rapid_leak_threshold_tank_3f') | float %}
+          {% set moderate_threshold = states('input_number.moderate_leak_threshold_tank_3f') | float %}
+          {% if rapid_leak > rapid_threshold %}
+            Critical
+          {% elif moderate_leak > moderate_threshold %}
+            Moderate
+          {% else %}
+            None
+          {% endif %}
+        device_class: "enum"
+        
+      # 1st Floor Tank Template Sensors
+      - name: "1st Floor Days Until Empty"
+        unique_id: "water_days_until_empty_1f"
+        state: >
+          {% set current_level = states('sensor.water_level_1f') | float %}
+          {% set daily_usage = states('sensor.water_level_1f') | attr('average_daily_consumption_l_day') | float %}
+          {% if daily_usage > 0 and current_level > 0 %}
+            {% set current_volume = states('sensor.water_level_1f') | attr('volume_liters') | float %}
+            {{ (current_volume / daily_usage) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+        unit_of_measurement: "days"
+        device_class: "duration"
+        
+      - name: "1st Floor Water Usage Trend"
+        unique_id: "water_usage_trend_1f"
+        state: >
+          {% set current_usage = states('sensor.water_level_1f') | attr('hourly_consumption_l_hour') | float %}
+          {% set avg_usage = states('sensor.water_level_1f') | attr('average_daily_consumption_l_day') | float / 24 %}
+          {% if avg_usage > 0 %}
+            {% if current_usage > avg_usage * 1.5 %}
+              High
+            {% elif current_usage < avg_usage * 0.5 %}
+              Low
+            {% else %}
+              Normal
+            {% endif %}
+          {% else %}
+            Normal
+          {% endif %}
+        device_class: "enum"
+        
+      - name: "1st Floor Leak Severity"
+        unique_id: "water_leak_severity_1f"
+        state: >
+          {% set rapid_leak = states('sensor.water_level_1f') | attr('consumption_15min_l_15min') | float %}
+          {% set moderate_leak = states('sensor.water_level_1f') | attr('consumption_30min_l_30min') | float %}
+          {% set rapid_threshold = states('input_number.rapid_leak_threshold_tank_1f') | float %}
+          {% set moderate_threshold = states('input_number.moderate_leak_threshold_tank_1f') | float %}
+          {% if rapid_leak > rapid_threshold %}
+            Critical
+          {% elif moderate_leak > moderate_threshold %}
+            Moderate
+          {% else %}
+            None
+          {% endif %}
+        device_class: "enum" 

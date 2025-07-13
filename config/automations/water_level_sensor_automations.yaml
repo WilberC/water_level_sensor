@@ -1,0 +1,165 @@
+# Water Level Sensor Automations
+# This file contains all automations for the water level monitoring system
+# Add this to your configuration.yaml with: !include automations/water_level_sensor_automations.yaml
+
+# 3rd Floor Tank Automations
+- alias: "Save 3rd Floor Water Level Calibration"
+  description: "Save calibration data when 3rd floor calibrate button is pressed"
+  trigger:
+    platform: state
+    entity_id: input_button.calibrate_sensor_tank_3f
+    to: "pressed"
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "3rd Floor Calibration Saved"
+        message: "3rd floor water level sensor calibration has been saved. The sensor will restart to apply new settings."
+    - delay: "00:00:02"
+    - service: input_button.press
+      target:
+        entity_id: input_button.calibrate_sensor_tank_3f
+
+- alias: "3rd Floor Low Water Level Alert"
+  description: "Send notification when 3rd floor water level is low"
+  trigger:
+    platform: state
+    entity_id: sensor.water_alert_tank_3f
+    to: "low_level"
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "🚨 3rd Floor Low Water Level Alert"
+        message: "{{ states('sensor.water_alert_tank_3f') }} - 3rd floor water level is critically low!"
+    - service: notify.mobile_app
+      data:
+        title: "🚨 3rd Floor Low Water Level"
+        message: "3rd floor water level is at {{ states('sensor.water_level_3f') }}% - Please check your tank!"
+
+- alias: "3rd Floor Rapid Leak Alert (15min)"
+  description: "Send urgent notification for 3rd floor rapid leak detection"
+  trigger:
+    platform: state
+    entity_id: sensor.water_alert_tank_3f
+    to: "rapid_leak"
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "🚨 3rd Floor RAPID LEAK DETECTED!"
+        message: "{{ states('sensor.water_alert_tank_3f') }} - Critical leak detected in 3rd floor tank in 15 minutes!"
+    - service: notify.mobile_app
+      data:
+        title: "🚨 3rd Floor RAPID LEAK DETECTED!"
+        message: "3rd floor critical leak: {{ states('sensor.water_level_3f') | attr('consumption_15min_l_15min') }} L/15min - CHECK IMMEDIATELY!"
+
+- alias: "3rd Floor Moderate Leak Alert (30min)"
+  description: "Send notification for 3rd floor moderate leak detection"
+  trigger:
+    platform: state
+    entity_id: sensor.water_alert_tank_3f
+    to: "moderate_leak"
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "⚠️ 3rd Floor MODERATE LEAK DETECTED"
+        message: "{{ states('sensor.water_alert_tank_3f') }} - Moderate leak detected in 3rd floor tank in 30 minutes!"
+    - service: notify.mobile_app
+      data:
+        title: "⚠️ 3rd Floor MODERATE LEAK DETECTED"
+        message: "3rd floor moderate leak: {{ states('sensor.water_level_3f') | attr('consumption_30min_l_30min') }} L/30min - Check soon!"
+
+# 1st Floor Tank Automations
+- alias: "Save 1st Floor Water Level Calibration"
+  description: "Save calibration data when 1st floor calibrate button is pressed"
+  trigger:
+    platform: state
+    entity_id: input_button.calibrate_sensor_tank_1f
+    to: "pressed"
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "1st Floor Calibration Saved"
+        message: "1st floor water level sensor calibration has been saved. The sensor will restart to apply new settings."
+    - delay: "00:00:02"
+    - service: input_button.press
+      target:
+        entity_id: input_button.calibrate_sensor_tank_1f
+
+- alias: "1st Floor Low Water Level Alert"
+  description: "Send notification when 1st floor water level is low"
+  trigger:
+    platform: state
+    entity_id: sensor.water_alert_tank_1f
+    to: "low_level"
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "🚨 1st Floor Low Water Level Alert"
+        message: "{{ states('sensor.water_alert_tank_1f') }} - 1st floor water level is critically low!"
+    - service: notify.mobile_app
+      data:
+        title: "🚨 1st Floor Low Water Level"
+        message: "1st floor water level is at {{ states('sensor.water_level_1f') }}% - Please check your tank!"
+
+- alias: "1st Floor Rapid Leak Alert (15min)"
+  description: "Send urgent notification for 1st floor rapid leak detection"
+  trigger:
+    platform: state
+    entity_id: sensor.water_alert_tank_1f
+    to: "rapid_leak"
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "🚨 1st Floor RAPID LEAK DETECTED!"
+        message: "{{ states('sensor.water_alert_tank_1f') }} - Critical leak detected in 1st floor tank in 15 minutes!"
+    - service: notify.mobile_app
+      data:
+        title: "🚨 1st Floor RAPID LEAK DETECTED!"
+        message: "1st floor critical leak: {{ states('sensor.water_level_1f') | attr('consumption_15min_l_15min') }} L/15min - CHECK IMMEDIATELY!"
+
+- alias: "1st Floor Moderate Leak Alert (30min)"
+  description: "Send notification for 1st floor moderate leak detection"
+  trigger:
+    platform: state
+    entity_id: sensor.water_alert_tank_1f
+    to: "moderate_leak"
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "⚠️ 1st Floor MODERATE LEAK DETECTED"
+        message: "{{ states('sensor.water_alert_tank_1f') }} - Moderate leak detected in 1st floor tank in 30 minutes!"
+    - service: notify.mobile_app
+      data:
+        title: "⚠️ 1st Floor MODERATE LEAK DETECTED"
+        message: "1st floor moderate leak: {{ states('sensor.water_level_1f') | attr('consumption_30min_l_30min') }} L/30min - Check soon!"
+
+# Combined Daily Report
+- alias: "Daily Water Consumption Report (Both Tanks)"
+  description: "Send daily water consumption summary for both tanks"
+  trigger:
+    platform: time
+    at: "08:00:00"
+  condition:
+    - condition: or
+      conditions:
+        - condition: numeric_state
+          entity_id: sensor.water_level_3f
+          attribute: daily_consumption_l_day
+          above: 0
+        - condition: numeric_state
+          entity_id: sensor.water_level_1f
+          attribute: daily_consumption_l_day
+          above: 0
+  action:
+    - service: notify.mobile_app
+      data:
+        title: "📊 Daily Water Report"
+        message: |
+          3rd Floor:
+          - Yesterday's consumption: {{ states('sensor.water_level_3f') | attr('daily_consumption_l_day') | round(1) }} L
+          - Current level: {{ states('sensor.water_level_3f') }}%
+          - Average daily: {{ states('sensor.water_level_3f') | attr('average_daily_consumption_l_day') | round(1) }} L
+          
+          1st Floor:
+          - Yesterday's consumption: {{ states('sensor.water_level_1f') | attr('daily_consumption_l_day') | round(1) }} L
+          - Current level: {{ states('sensor.water_level_1f') }}%
+          - Average daily: {{ states('sensor.water_level_1f') | attr('average_daily_consumption_l_day') | round(1) }} L 

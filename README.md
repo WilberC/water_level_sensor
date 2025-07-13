@@ -249,39 +249,101 @@ Each sensor automatically creates these entities:
 - `input_number.alert_cooldown_[location]`
 - `sensor.water_alert_[location]`
 
-## 🏠 Home Assistant Configuration
+## 📋 Home Assistant Configuration
 
-### How to Use the YAML Configuration File
+### Quick Setup
+The Home Assistant configuration has been organized into modular files for easy integration. See the `config/` folder for the complete setup.
 
-The `home_assistant_configuration.yaml` file contains ready-to-use Home Assistant configurations for both sensors. Here's how to use it:
-
-#### Option 1: Include the Entire File
-Add this line to your main `configuration.yaml`:
-```yaml
-# In configuration.yaml
-!include home_assistant_configuration.yaml
+### Configuration Files
+```
+config/
+├── automations/water_level_sensor_automations.yaml    # Alert automations
+├── templates/water_level_sensor_templates.yaml        # Template sensors
+├── lovelace/water_level_dashboard.yaml                # Dashboard views
+├── configuration_integration.yaml                     # Integration guide
+└── README.md                                          # Setup instructions
 ```
 
-#### Option 2: Copy Specific Sections
-Copy the sections you need from the YAML file into your `configuration.yaml`:
-- **Dashboard views** → `configuration.yaml` or `lovelace.yaml`
-- **Automations** → `automations.yaml`
-- **Template sensors** → `configuration.yaml`
+### Installation Steps
+1. **Copy** the `config/` folder to your Home Assistant configuration directory
+2. **Add** these lines to your main `configuration.yaml`:
+   ```yaml
+   # Include water level sensor automations
+   automation: !include automations/water_level_sensor_automations.yaml
+   
+   # Include water level sensor template sensors
+   template: !include templates/water_level_sensor_templates.yaml
+   ```
+3. **Add dashboard** (choose one option):
+   - **Option A**: Include in `configuration.yaml`:
+     ```yaml
+     lovelace:
+       mode: yaml
+       dashboards:
+         water-level:
+           mode: yaml
+           title: Water Level Monitoring
+           icon: mdi:water
+           show_in_sidebar: true
+           source: !include lovelace/water_level_dashboard.yaml
+     ```
+   - **Option B**: Import manually in Lovelace UI
+4. **Restart** Home Assistant
 
-#### Option 3: Use as Template
-Modify the YAML file for your specific needs and include it.
+### Features Included
+- **Automations**: Low level alerts, leak detection, daily reports
+- **Template Sensors**: Days until empty, usage trends, leak severity
+- **Dashboard Views**: Monitoring, calibration, alert management
+- **Complete Documentation**: See `config/README.md` for detailed instructions
+
+## 🏠 Home Assistant Dashboard Configuration
+
+### Dashboard Features
+The water level monitoring system includes three comprehensive dashboard views:
+
+1. **Water Level Monitoring**: Real-time graphs, gauges, and status
+2. **Tank Calibration**: Setup and calibration interface
+3. **Alert Monitoring**: Threshold configuration and alert management
+
+### Dashboard Setup
+The dashboard configuration is included in the `config/lovelace/water_level_dashboard.yaml` file. You can:
+
+#### Option 1: Include in Main Configuration
+Add this to your `configuration.yaml`:
+```yaml
+lovelace:
+  mode: yaml
+  dashboards:
+    water-level:
+      mode: yaml
+      title: Water Level Monitoring
+      icon: mdi:water
+      show_in_sidebar: true
+      source: !include lovelace/water_level_dashboard.yaml
+```
+
+#### Option 2: Import Manually in Lovelace
+1. Go to your Lovelace dashboard
+2. Click the three dots menu → "Manage Dashboards"
+3. Click the "+" to add a new dashboard
+4. Choose "YAML" mode
+5. Copy the contents of `config/lovelace/water_level_dashboard.yaml`
 
 ### File Structure
 ```
 water_level_sensor/
 ├── README.md                           # Complete documentation and guide
-├── home_assistant_configuration.yaml   # Ready-to-use HA config for 2 sensors
+├── config/                             # Organized Home Assistant configuration
+│   ├── automations/                    # Alert automations
+│   ├── templates/                      # Template sensors
+│   ├── lovelace/                       # Dashboard views
+│   └── README.md                       # Configuration setup guide
 ├── platformio.ini                      # PlatformIO configuration
 └── src/
     └── water_level.ino                 # Main Arduino sketch
 ```
 
-## 📊 Dashboard Configuration
+## 📊 Dashboard Features
 
 ### Main Monitoring Dashboard (2 Sensors)
 ```yaml
@@ -864,9 +926,33 @@ template:
 ```
 water_level_sensor/
 ├── README.md                    # This comprehensive guide
+├── config/                      # Organized Home Assistant configuration
+│   ├── automations/             # Alert automations
+│   ├── templates/               # Template sensors
+│   ├── lovelace/                # Dashboard views
+│   └── README.md                # Configuration setup guide
 ├── platformio.ini              # PlatformIO configuration
 └── src/
     └── water_level.ino         # Main Arduino sketch
+```
+
+## 📁 Home Assistant Configuration
+
+The Home Assistant configuration has been organized into modular files for easy integration. See the `config/` folder for the complete setup:
+
+- **`config/automations/`**: All alert automations (low level, leaks, daily reports)
+- **`config/templates/`**: Calculated sensors (days until empty, usage trends)
+- **`config/lovelace/`**: Dashboard views (monitoring, calibration, alerts)
+- **`config/README.md`**: Complete setup and troubleshooting guide
+
+### Quick Integration
+Add these lines to your main `configuration.yaml`:
+```yaml
+# Include water level sensor automations
+automation: !include automations/water_level_sensor_automations.yaml
+
+# Include water level sensor template sensors
+template: !include templates/water_level_sensor_templates.yaml
 ```
 
 ## 🎯 Tips for Success
