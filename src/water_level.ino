@@ -108,6 +108,7 @@ void monitorWaterConsumption();
 void checkAlerts();
 void createAlertEntities();
 void sendAlert(String alertType, String message);
+void testUltrasonicSensor();
 
 void setup() {
   Serial.begin(115200);
@@ -165,6 +166,7 @@ void setup() {
 
 void loop() {
   static int counter = 0;
+  static bool sensorTested = false;
   
   Serial.print("Measurement #");
   Serial.println(counter++);
@@ -176,6 +178,13 @@ void loop() {
   } else {
     Serial.print("📶 WiFi Connected - IP: ");
     Serial.println(WiFi.localIP());
+  }
+  
+  // Run sensor test on first iteration
+  if (!sensorTested) {
+    testUltrasonicSensor();
+    sensorTested = true;
+    Serial.println("---");
   }
   
   // Simple distance measurement
@@ -209,7 +218,28 @@ void loop() {
     sendToHomeAssistant();
     
   } else {
-    Serial.println("Measurement failed!");
+    Serial.print("❌ Measurement failed! Error code: ");
+    Serial.println(distance);
+    
+    // Provide specific error messages
+    switch (distance) {
+      case -1:
+        Serial.println("   → No echo received (timeout)");
+        Serial.println("   → Check sensor wiring and power");
+        break;
+      case -2:
+        Serial.println("   → Echo too short");
+        Serial.println("   → Check sensor connections");
+        break;
+      case -3:
+        Serial.println("   → Echo too long");
+        Serial.println("   → Check for interference or sensor malfunction");
+        break;
+      default:
+        Serial.println("   → Unknown error");
+        break;
+    }
+    
     currentData.isConnected = false;
   }
   
@@ -528,18 +558,69 @@ int measureDistance() {
   delayMicroseconds(10);
   digitalWrite(TRIG_PIN, LOW);
   
-  // Measure echo duration
-  long duration = pulseIn(ECHO_PIN, HIGH, 15000); // 15ms timeout
+  // Measure echo duration with longer timeout for debugging
+  long duration = pulseIn(ECHO_PIN, HIGH, 30000); // 30ms timeout for debugging
+  
+  Serial.print("🔍 Raw duration: ");
+  Serial.print(duration);
+  Serial.println(" microseconds");
   
   if (duration == 0) {
+    Serial.println("❌ No echo received - sensor timeout");
     return -1; // Timeout
+  }
+  
+  if (duration < 100) {
+    Serial.println("⚠️  Echo too short - possible sensor issue");
+    return -2; // Too short
+  }
+  
+  if (duration > 25000) {
+    Serial.println("⚠️  Echo too long - possible sensor issue");
+    return -3; // Too long
   }
   
   // Calculate distance (speed of sound = 0.034 cm/microsecond)
   int distance = duration * 0.034 / 2;
   
+  Serial.print("📏 Calculated distance: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+  
   return distance;
-} 
+}
+
+// Add a test function for ultrasonic sensor
+void testUltrasonicSensor() {
+  Serial.println("🧪 Testing ultrasonic sensor...");
+  Serial.println("📋 Pin configuration:");
+  Serial.print("  TRIG_PIN: GPIO");
+  Serial.println(TRIG_PIN);
+  Serial.print("  ECHO_PIN: GPIO");
+  Serial.println(ECHO_PIN);
+  
+  // Test multiple readings
+  for (int i = 0; i < 5; i++) {
+    Serial.print("Test #");
+    Serial.print(i + 1);
+    Serial.println(":");
+    
+    int distance = measureDistance();
+    
+    if (distance > 0) {
+      Serial.print("✅ Valid reading: ");
+      Serial.print(distance);
+      Serial.println(" cm");
+    } else {
+      Serial.print("❌ Invalid reading: ");
+      Serial.println(distance);
+    }
+    
+    delay(1000);
+  }
+  
+  Serial.println("🧪 Sensor test complete");
+}
 
 void loadCalibration() {
   calibration.tankHeight = preferences.getFloat("tank_height", 100.0);
@@ -729,6 +810,7 @@ void sendAlert(String alertType, String message) {
   String haUrl = preferences.getString("ha_url", homeAssistantUrl);
   String token = preferences.getString("ha_token", "");
   String deviceLocation = preferences.getString("device_location", deviceLocation);
+  String deviceName = preferences.getString("device_name", deviceName);
   if (token.length() == 0) return;
   
   HTTPClient http;
@@ -742,7 +824,7 @@ void sendAlert(String alertType, String message) {
   doc["state"] = alertType;
   
   JsonObject attributes = doc.createNestedObject("attributes");
-  attributes["friendly_name"] = "Water Alert";
+  attributes["friendly_name"] = deviceName + " - Water Alert";
   attributes["alert_message"] = message;
   attributes["alert_type"] = alertType;
   attributes["water_level"] = currentData.percentage;
@@ -760,6 +842,7 @@ void createAlertEntities() {
   String haUrl = preferences.getString("ha_url", homeAssistantUrl);
   String token = preferences.getString("ha_token", "");
   String deviceLocation = preferences.getString("device_location", deviceLocation);
+  String deviceName = preferences.getString("device_name", deviceName);
   if (token.length() == 0) return;
   
   HTTPClient http;
@@ -775,7 +858,7 @@ void createAlertEntities() {
   
   JsonObject attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "%";
-  attributes["friendly_name"] = "Low Level Threshold";
+  attributes["friendly_name"] = deviceName + " - Low Level Threshold";
   attributes["min"] = 5;
   attributes["max"] = 50;
   attributes["step"] = 1;
@@ -797,7 +880,7 @@ void createAlertEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "L/15min";
-  attributes["friendly_name"] = "Rapid Leak Threshold (15min)";
+  attributes["friendly_name"] = deviceName + " - Rapid Leak Threshold (15min)";
   attributes["min"] = 1;
   attributes["max"] = 20;
   attributes["step"] = 0.5;
@@ -819,7 +902,7 @@ void createAlertEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "L/30min";
-  attributes["friendly_name"] = "Moderate Leak Threshold (30min)";
+  attributes["friendly_name"] = deviceName + " - Moderate Leak Threshold (30min)";
   attributes["min"] = 2;
   attributes["max"] = 30;
   attributes["step"] = 1;
@@ -841,7 +924,7 @@ void createAlertEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "L/hour";
-  attributes["friendly_name"] = "High Consumption Threshold";
+  attributes["friendly_name"] = deviceName + " - High Consumption Threshold";
   attributes["min"] = 10;
   attributes["max"] = 200;
   attributes["step"] = 5;
@@ -863,7 +946,7 @@ void createAlertEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "L/hour";
-  attributes["friendly_name"] = "Leak Detection Threshold";
+  attributes["friendly_name"] = deviceName + " - Leak Detection Threshold";
   attributes["min"] = 1;
   attributes["max"] = 50;
   attributes["step"] = 1;
@@ -885,7 +968,7 @@ void createAlertEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "minutes";
-  attributes["friendly_name"] = "Alert Cooldown";
+  attributes["friendly_name"] = deviceName + " - Alert Cooldown";
   attributes["min"] = 5;
   attributes["max"] = 120;
   attributes["step"] = 5;
@@ -939,6 +1022,7 @@ void createCalibrationEntities() {
   String haUrl = preferences.getString("ha_url", homeAssistantUrl);
   String token = preferences.getString("ha_token", "");
   String deviceLocation = preferences.getString("device_location", deviceLocation);
+  String deviceName = preferences.getString("device_name", deviceName);
   if (token.length() == 0) return;
   
   HTTPClient http;
@@ -954,7 +1038,7 @@ void createCalibrationEntities() {
   
   JsonObject attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "cm";
-  attributes["friendly_name"] = "Tank Height";
+  attributes["friendly_name"] = deviceName + " - Tank Height";
   attributes["min"] = 10;
   attributes["max"] = 500;
   attributes["step"] = 1;
@@ -976,7 +1060,7 @@ void createCalibrationEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "cm";
-  attributes["friendly_name"] = "Empty Distance";
+  attributes["friendly_name"] = deviceName + " - Empty Distance";
   attributes["min"] = 1;
   attributes["max"] = 50;
   attributes["step"] = 0.5;
@@ -998,7 +1082,7 @@ void createCalibrationEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "cm";
-  attributes["friendly_name"] = "Full Distance";
+  attributes["friendly_name"] = deviceName + " - Full Distance";
   attributes["min"] = 50;
   attributes["max"] = 200;
   attributes["step"] = 0.5;
@@ -1020,7 +1104,7 @@ void createCalibrationEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "cm";
-  attributes["friendly_name"] = "Tank Diameter";
+  attributes["friendly_name"] = deviceName + " - Tank Diameter";
   attributes["min"] = 10;
   attributes["max"] = 200;
   attributes["step"] = 1;
@@ -1041,7 +1125,7 @@ void createCalibrationEntities() {
   doc["state"] = "idle";
   
   attributes = doc.createNestedObject("attributes");
-  attributes["friendly_name"] = "Calibrate Sensor";
+  attributes["friendly_name"] = deviceName + " - Calibrate Sensor";
   
   jsonString = "";
   serializeJson(doc, jsonString);
