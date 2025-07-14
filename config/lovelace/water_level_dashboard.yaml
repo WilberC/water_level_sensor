@@ -2,220 +2,171 @@
 # This file contains the Lovelace dashboard views for water level monitoring
 # Import this into your Lovelace dashboard or use as a separate dashboard
 
+title: Water Level Monitoring
 views:
-  - title: Water Level Monitoring
-    path: water-level
+  - title: Overview
+    path: overview
     type: custom:grid-layout
-    badges: []
+    layout:
+      grid-template-columns: 1fr 1fr
+      grid-template-rows: auto auto auto
+      grid-gap: 16px
     cards:
-      - type: vertical-stack
-        cards:
-          - type: custom:mini-graph-card
-            name: 3rd Floor Tank
-            entity: sensor.water_level_3f
-            line_color: "#2196F3"
-            fill_color: "#2196F3"
-            points_per_hour: 20
-            hours_to_show: 24
-            min: 0
-            max: 100
-            
-          - type: custom:mini-graph-card
-            name: 1st Floor Tank
-            entity: sensor.water_level_1f
-            line_color: "#FF9800"
-            fill_color: "#FF9800"
-            points_per_hour: 20
-            hours_to_show: 24
-            min: 0
-            max: 100
-            
-          - type: gauge
-            name: 3rd Floor Level
-            entity: sensor.water_level_3f
-            min: 0
-            max: 100
-            severity:
-              green: 0
-              yellow: 20
-              red: 10
-            
-          - type: gauge
-            name: 1st Floor Level
-            entity: sensor.water_level_1f
-            min: 0
-            max: 100
-            severity:
-              green: 0
-              yellow: 20
-              red: 10
-            
-          - type: entities
-            title: Current Status
-            entities:
-              - entity: sensor.water_level_3f
-                name: 3rd Floor Tank
-              - entity: sensor.water_level_1f
-                name: 1st Floor Tank
-              - type: attribute
-                entity: sensor.water_level_3f
-                attribute: volume_liters
-                name: 3F Volume (L)
-              - type: attribute
-                entity: sensor.water_level_1f
-                attribute: volume_liters
-                name: 1F Volume (L)
-              - type: attribute
-                entity: sensor.water_level_3f
-                attribute: consumption_15min_l_15min
-                name: 3F 15-Min Consumption (L/15min)
-              - type: attribute
-                entity: sensor.water_level_1f
-                attribute: consumption_15min_l_15min
-                name: 1F 15-Min Consumption (L/15min)
-              - type: attribute
-                entity: sensor.water_level_3f
-                attribute: hourly_consumption_l_hour
-                name: 3F Hourly Consumption (L/h)
-              - type: attribute
-                entity: sensor.water_level_1f
-                attribute: hourly_consumption_l_hour
-                name: 1F Hourly Consumption (L/h)
+      - type: custom:mini-graph-card
+        name: 3rd Floor Tank Level
+        entity: sensor.water_level_3f
+        line_color: "#2196F3"
+        fill_color: "#2196F3"
+        points_per_hour: 4
+        hours_to_show: 24
+        grid:
+          top: 10%
+          bottom: 10%
+        layout:
+          grid-area: 1 / 1 / 2 / 2
 
-  - title: Tank Calibration
+      - type: custom:mini-graph-card
+        name: 1st Floor Tank Level
+        entity: sensor.water_level_1f
+        line_color: "#4CAF50"
+        fill_color: "#4CAF50"
+        points_per_hour: 4
+        hours_to_show: 24
+        grid:
+          top: 10%
+          bottom: 10%
+        layout:
+          grid-area: 1 / 2 / 2 / 3
+
+      - type: entities
+        title: Tank Status
+        entities:
+          - entity: sensor.water_level_3f
+            name: 3rd Floor Level
+          - entity: sensor.water_level_1f
+            name: 1st Floor Level
+          - entity: sensor.water_alert_tank_3f
+            name: 3rd Floor Alert Status
+          - entity: sensor.water_alert_tank_1f
+            name: 1st Floor Alert Status
+        layout:
+          grid-area: 2 / 1 / 3 / 3
+
+      - type: entities
+        title: Quick Actions
+        entities:
+          - entity: input_button.calibrate_sensor_tank_3f
+            name: Calibrate 3rd Floor Sensor
+          - entity: input_button.calibrate_sensor_tank_1f
+            name: Calibrate 1st Floor Sensor
+        layout:
+          grid-area: 3 / 1 / 4 / 3
+
+  - title: Calibration
     path: calibration
     type: custom:grid-layout
-    badges: []
+    layout:
+      grid-template-columns: 1fr 1fr
+      grid-template-rows: auto auto auto
+      grid-gap: 16px
     cards:
-      - type: vertical-stack
-        cards:
-          - type: entities
-            title: 3rd Floor Tank Calibration
-            entities:
-              - entity: input_number.tank_height_tank_3f
-                name: Tank Height
-              - entity: input_number.tank_diameter_tank_3f
-                name: Tank Diameter
-              - entity: input_number.empty_distance_tank_3f
-                name: Empty Distance
-              - entity: input_number.full_distance_tank_3f
-                name: Full Distance
-              - entity: input_button.calibrate_sensor_tank_3f
-                name: Save Calibration
-              
-          - type: entities
-            title: 1st Floor Tank Calibration
-            entities:
-              - entity: input_number.tank_height_tank_1f
-                name: Tank Height
-              - entity: input_number.tank_diameter_tank_1f
-                name: Tank Diameter
-              - entity: input_number.empty_distance_tank_1f
-                name: Empty Distance
-              - entity: input_number.full_distance_tank_1f
-                name: Full Distance
-              - entity: input_button.calibrate_sensor_tank_1f
-                name: Save Calibration
-              
-          - type: markdown
-            content: |
-              ## Calibration Instructions:
-              
-              1. **Measure your tank dimensions** and set them above
-              2. **Empty your tank** and note the distance reading
-              3. **Fill your tank** and note the distance reading
-              4. **Set the distances** in the fields above
-              5. **Click "Save Calibration"** to apply settings
-              
-              The sensor will automatically calculate accurate water levels and volumes!
+      - type: entities
+        title: 3rd Floor Tank Settings
+        entities:
+          - entity: input_number.tank_height_tank_3f
+            name: Tank Height (cm)
+          - entity: input_number.tank_diameter_tank_3f
+            name: Tank Diameter (cm)
+          - entity: input_number.empty_distance_tank_3f
+            name: Empty Distance (cm)
+          - entity: input_number.full_distance_tank_3f
+            name: Full Distance (cm)
+        layout:
+          grid-area: 1 / 1 / 2 / 2
 
-  - title: Alert Monitoring
+      - type: entities
+        title: 1st Floor Tank Settings
+        entities:
+          - entity: input_number.tank_height_tank_1f
+            name: Tank Height (cm)
+          - entity: input_number.tank_diameter_tank_1f
+            name: Tank Diameter (cm)
+          - entity: input_number.empty_distance_tank_1f
+            name: Empty Distance (cm)
+          - entity: input_number.full_distance_tank_1f
+            name: Full Distance (cm)
+        layout:
+          grid-area: 1 / 2 / 2 / 3
+
+      - type: entities
+        title: Alert Thresholds - 3rd Floor
+        entities:
+          - entity: input_number.low_level_threshold_tank_3f
+            name: Low Level Threshold (%)
+          - entity: input_number.rapid_leak_threshold_tank_3f
+            name: Rapid Leak Threshold (L/min)
+          - entity: input_number.moderate_leak_threshold_tank_3f
+            name: Moderate Leak Threshold (L/min)
+          - entity: input_number.high_consumption_threshold_tank_3f
+            name: High Consumption Threshold (L/min)
+        layout:
+          grid-area: 2 / 1 / 3 / 2
+
+      - type: entities
+        title: Alert Thresholds - 1st Floor
+        entities:
+          - entity: input_number.low_level_threshold_tank_1f
+            name: Low Level Threshold (%)
+          - entity: input_number.rapid_leak_threshold_tank_1f
+            name: Rapid Leak Threshold (L/min)
+          - entity: input_number.moderate_leak_threshold_tank_1f
+            name: Moderate Leak Threshold (L/min)
+          - entity: input_number.high_consumption_threshold_tank_1f
+            name: High Consumption Threshold (L/min)
+        layout:
+          grid-area: 2 / 2 / 3 / 3
+
+      - type: entities
+        title: Advanced Settings
+        entities:
+          - entity: input_number.leak_detection_threshold_tank_3f
+            name: Leak Detection Threshold - 3F
+          - entity: input_number.leak_detection_threshold_tank_1f
+            name: Leak Detection Threshold - 1F
+          - entity: input_number.alert_cooldown_tank_3f
+            name: Alert Cooldown - 3F (min)
+          - entity: input_number.alert_cooldown_tank_1f
+            name: Alert Cooldown - 1F (min)
+        layout:
+          grid-area: 3 / 1 / 4 / 3
+
+  - title: Alerts
     path: alerts
     type: custom:grid-layout
-    badges: []
+    layout:
+      grid-template-columns: 1fr
+      grid-template-rows: auto auto
+      grid-gap: 16px
     cards:
-      - type: vertical-stack
-        cards:
-          - type: entities
-            title: 3rd Floor Alert Thresholds
-            entities:
-              - entity: input_number.low_level_threshold_tank_3f
-                name: Low Level Threshold (%)
-              - entity: input_number.rapid_leak_threshold_tank_3f
-                name: Rapid Leak Threshold (L/15min)
-              - entity: input_number.moderate_leak_threshold_tank_3f
-                name: Moderate Leak Threshold (L/30min)
-              - entity: input_number.high_consumption_threshold_tank_3f
-                name: High Consumption Threshold (L/h)
-              - entity: input_number.leak_detection_threshold_tank_3f
-                name: Leak Detection Threshold (L/h)
-              - entity: input_number.alert_cooldown_tank_3f
-                name: Alert Cooldown (minutes)
-              
-          - type: entities
-            title: 1st Floor Alert Thresholds
-            entities:
-              - entity: input_number.low_level_threshold_tank_1f
-                name: Low Level Threshold (%)
-              - entity: input_number.rapid_leak_threshold_tank_1f
-                name: Rapid Leak Threshold (L/15min)
-              - entity: input_number.moderate_leak_threshold_tank_1f
-                name: Moderate Leak Threshold (L/30min)
-              - entity: input_number.high_consumption_threshold_tank_1f
-                name: High Consumption Threshold (L/h)
-              - entity: input_number.leak_detection_threshold_tank_1f
-                name: Leak Detection Threshold (L/h)
-              - entity: input_number.alert_cooldown_tank_1f
-                name: Alert Cooldown (minutes)
-              
-          - type: entities
-            title: Current Alerts
-            entities:
-              - entity: sensor.water_alert_tank_3f
-                name: 3rd Floor Alert Status
-              - entity: sensor.water_alert_tank_1f
-                name: 1st Floor Alert Status
-              - type: attribute
-                entity: sensor.water_alert_tank_3f
-                attribute: alert_message
-                name: 3F Alert Message
-              - type: attribute
-                entity: sensor.water_alert_tank_1f
-                attribute: alert_message
-                name: 1F Alert Message
-              
-          - type: custom:mini-graph-card
-            name: Multi-Interval Consumption (3rd Floor)
-            entities:
-              - entity: sensor.water_level_3f
-                attribute: consumption_15min_l_15min
-                name: 15-Min Consumption
-              - entity: sensor.water_level_3f
-                attribute: consumption_30min_l_30min
-                name: 30-Min Consumption
-              - entity: sensor.water_level_3f
-                attribute: hourly_consumption_l_hour
-                name: Hourly Consumption
-            line_color: "#2196F3"
-            fill_color: "#2196F3"
-            points_per_hour: 4
-            hours_to_show: 6
-            min: 0
-            
-          - type: custom:mini-graph-card
-            name: Multi-Interval Consumption (1st Floor)
-            entities:
-              - entity: sensor.water_level_1f
-                attribute: consumption_15min_l_15min
-                name: 15-Min Consumption
-              - entity: sensor.water_level_1f
-                attribute: consumption_30min_l_30min
-                name: 30-Min Consumption
-              - entity: sensor.water_level_1f
-                attribute: hourly_consumption_l_hour
-                name: Hourly Consumption
-            line_color: "#FF9800"
-            fill_color: "#FF9800"
-            points_per_hour: 4
-            hours_to_show: 6
-            min: 0 
+      - type: entities
+        title: Current Alerts
+        entities:
+          - entity: sensor.water_alert_tank_3f
+            name: 3rd Floor Alert Status
+          - entity: sensor.water_alert_tank_1f
+            name: 1st Floor Alert Status
+        layout:
+          grid-area: 1 / 1 / 2 / 2
+
+      - type: custom:mini-graph-card
+        name: Alert History
+        entities:
+          - entity: sensor.water_alert_tank_3f
+            name: 3rd Floor
+          - entity: sensor.water_alert_tank_1f
+            name: 1st Floor
+        line_color: "#FF5722"
+        hours_to_show: 168
+        points_per_hour: 1
+        layout:
+          grid-area: 2 / 1 / 3 / 2

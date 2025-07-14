@@ -1,0 +1,36 @@
+
+# Loads default set of integrations. Do not remove.
+default_config:
+
+cloud:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+# HTTP integration configuration for reverse proxy
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 127.0.0.1
+    - ::1
+    - 172.18.0.0/16
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+# Include water level sensor template sensors
+# This adds calculated sensors like "days until empty" and "usage trends"
+template: !include templates/water_level_sensor_templates.yaml
+
+# Include dashboard in main configuration
+lovelace:
+  mode: yaml
+  dashboards:
+    water-level:
+      mode: yaml
+      title: Water Level Monitoring
+      icon: mdi:water
+      show_in_sidebar: true
+      filename: lovelace/water_level_dashboard.yaml

@@ -49,7 +49,7 @@
     - service: notify.mobile_app
       data:
         title: "🚨 3rd Floor RAPID LEAK DETECTED!"
-        message: "3rd floor critical leak: {{ states('sensor.water_level_3f') | attr('consumption_15min_l_15min') }} L/15min - CHECK IMMEDIATELY!"
+        message: "3rd floor critical leak: {{ states.sensor.water_level_3f.attributes.get('consumption_15min_l_15min', 'Unknown') }} L/15min - CHECK IMMEDIATELY!"
 
 - alias: "3rd Floor Moderate Leak Alert (30min)"
   description: "Send notification for 3rd floor moderate leak detection"
@@ -65,7 +65,7 @@
     - service: notify.mobile_app
       data:
         title: "⚠️ 3rd Floor MODERATE LEAK DETECTED"
-        message: "3rd floor moderate leak: {{ states('sensor.water_level_3f') | attr('consumption_30min_l_30min') }} L/30min - Check soon!"
+        message: "3rd floor moderate leak: {{ states.sensor.water_level_3f.attributes.get('consumption_30min_l_30min', 'Unknown') }} L/30min - Check soon!"
 
 # 1st Floor Tank Automations
 - alias: "Save 1st Floor Water Level Calibration"
@@ -114,7 +114,7 @@
     - service: notify.mobile_app
       data:
         title: "🚨 1st Floor RAPID LEAK DETECTED!"
-        message: "1st floor critical leak: {{ states('sensor.water_level_1f') | attr('consumption_15min_l_15min') }} L/15min - CHECK IMMEDIATELY!"
+        message: "1st floor critical leak: {{ states.sensor.water_level_1f.attributes.get('consumption_15min_l_15min', 'Unknown') }} L/15min - CHECK IMMEDIATELY!"
 
 - alias: "1st Floor Moderate Leak Alert (30min)"
   description: "Send notification for 1st floor moderate leak detection"
@@ -130,7 +130,7 @@
     - service: notify.mobile_app
       data:
         title: "⚠️ 1st Floor MODERATE LEAK DETECTED"
-        message: "1st floor moderate leak: {{ states('sensor.water_level_1f') | attr('consumption_30min_l_30min') }} L/30min - Check soon!"
+        message: "1st floor moderate leak: {{ states.sensor.water_level_1f.attributes.get('consumption_30min_l_30min', 'Unknown') }} L/30min - Check soon!"
 
 # Combined Daily Report
 - alias: "Daily Water Consumption Report (Both Tanks)"
@@ -155,11 +155,11 @@
         title: "📊 Daily Water Report"
         message: |
           3rd Floor:
-          - Yesterday's consumption: {{ states('sensor.water_level_3f') | attr('daily_consumption_l_day') | round(1) }} L
+          - Yesterday's consumption: {{ states.sensor.water_level_3f.attributes.get('daily_consumption_l_day', 0) | round(1) }} L
           - Current level: {{ states('sensor.water_level_3f') }}%
-          - Average daily: {{ states('sensor.water_level_3f') | attr('average_daily_consumption_l_day') | round(1) }} L
+          - Average daily: {{ states.sensor.water_level_3f.attributes.get('average_daily_consumption_l_day', 0) | round(1) }} L
           
           1st Floor:
-          - Yesterday's consumption: {{ states('sensor.water_level_1f') | attr('daily_consumption_l_day') | round(1) }} L
+          - Yesterday's consumption: {{ states.sensor.water_level_1f.attributes.get('daily_consumption_l_day', 0) | round(1) }} L
           - Current level: {{ states('sensor.water_level_1f') }}%
-          - Average daily: {{ states('sensor.water_level_1f') | attr('average_daily_consumption_l_day') | round(1) }} L 
+          - Average daily: {{ states.sensor.water_level_1f.attributes.get('average_daily_consumption_l_day', 0) | round(1) }} L

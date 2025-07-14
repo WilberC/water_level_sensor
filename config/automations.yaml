@@ -1,0 +1,18 @@
+# Basic automations file
+# This file can contain your existing automations
+# The water level sensor automations are included separately
+
+# Include water level sensor automations
+!include automations/water_level_sensor_automations.yaml
+
+# Example automation (uncomment and modify as needed):
+# - alias: "Example Automation"
+#   description: "Example automation for reference"
+#   trigger:
+#     - platform: time
+#       at: "08:00:00"
+#   condition: []
+#   action:
+#     - service: notify.notify
+#       data:
+#         message: "Example notification" 

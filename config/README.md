@@ -1,150 +1,122 @@
-# Water Level Sensor Home Assistant Configuration
+# Water Level Sensor Configuration
 
-This folder contains the organized configuration files for the Water Level Sensor system.
+This directory contains the complete Home Assistant configuration for the water level sensor system.
 
-## File Structure
+## 🚨 Recent Fixes (2025-07-13)
 
-```
-config/
-├── automations/
-│   └── water_level_sensor_automations.yaml    # All automations for alerts and notifications
-├── templates/
-│   └── water_level_sensor_templates.yaml      # Template sensors for calculations
-├── lovelace/
-│   └── water_level_dashboard.yaml             # Dashboard views for monitoring
-├── configuration_integration.yaml             # How to include files in main config
-└── README.md                                  # This file
-```
+### Issues Resolved:
+1. **Automation Validation Error**: Fixed nested list structure in automation configuration
+2. **Template Errors**: Added safe attribute access with fallback values
+3. **Missing Attributes**: Templates now handle cases where sensor attributes don't exist yet
 
-## Installation Instructions
+### Changes Made:
+- Fixed `configuration_example.yaml` to properly include automations
+- Updated `automations.yaml` to include water level sensor automations
+- Added `default()` filters to all template sensors for safe attribute access
+- Updated automation notifications to handle missing attributes gracefully
 
-### Step 1: Copy Files to Home Assistant
-Copy the entire `config` folder to your Home Assistant configuration directory:
-```
-homeassistant/
-├── configuration.yaml
-├── automations/
-│   └── water_level_sensor_automations.yaml
-├── templates/
-│   └── water_level_sensor_templates.yaml
-└── lovelace/
-    └── water_level_dashboard.yaml
-```
+## 📁 Configuration Files
 
-### Step 2: Update Main Configuration
-Add these lines to your `configuration.yaml`:
+### Main Configuration
+- `configuration_example.yaml` - Main Home Assistant configuration file
+- `automations.yaml` - Main automations file (includes water level automations)
+- `scripts.yaml` - Home Assistant scripts
+- `scenes.yaml` - Home Assistant scenes
 
-```yaml
-# Include water level sensor automations
-automation: !include automations/water_level_sensor_automations.yaml
+### Water Level Sensor Specific
+- `automations/water_level_sensor_automations.yaml` - Water level alert automations
+- `templates/water_level_sensor_templates.yaml` - Template sensors for calculations
+- `lovelace/water_level_dashboard.yaml` - Dashboard configuration
 
-# Include water level sensor template sensors
-template: !include templates/water_level_sensor_templates.yaml
-```
+## 🔧 Setup Instructions
 
-### Step 3: Add Dashboard (Choose One Option)
-
-#### Option A: Include in Main Configuration
-Add this to your `configuration.yaml`:
+### 1. Copy Configuration Files
+Copy the contents of `configuration_example.yaml` to your main `configuration.yaml` file, or include it directly:
 
 ```yaml
-lovelace:
-  mode: yaml
-  dashboards:
-    water-level:
-      mode: yaml
-      title: Water Level Monitoring
-      icon: mdi:water
-      show_in_sidebar: true
-      source: !include lovelace/water_level_dashboard.yaml
+# In your main configuration.yaml
+!include config/configuration_example.yaml
 ```
 
-#### Option B: Import Manually in Lovelace
-1. Go to your Lovelace dashboard
-2. Click the three dots menu → "Manage Dashboards"
-3. Click the "+" to add a new dashboard
-4. Choose "YAML" mode
-5. Copy the contents of `lovelace/water_level_dashboard.yaml`
+### 2. Verify Sensor Entities
+Ensure your water level sensors are properly configured and sending data. The system expects:
+- `sensor.water_level_3f` - 3rd floor water level sensor
+- `sensor.water_level_1f` - 1st floor water level sensor
+- `sensor.water_alert_tank_3f` - 3rd floor alert sensor
+- `sensor.water_alert_tank_1f` - 1st floor alert sensor
 
-### Step 4: Restart Home Assistant
-After making changes, restart Home Assistant to load the new configuration.
+### 3. Check Sensor Attributes
+The Arduino sensors should send these attributes:
+- `volume_liters` - Current volume in liters
+- `consumption_15min_l_15min` - 15-minute consumption rate
+- `consumption_30min_l_30min` - 30-minute consumption rate
+- `hourly_consumption_l_hour` - Hourly consumption rate
+- `daily_consumption_l_day` - Daily consumption
+- `average_daily_consumption_l_day` - Average daily consumption
 
-## Required Custom Components
+### 4. Restart Home Assistant
+After copying the configuration files, restart Home Assistant to load the new configuration.
 
-Make sure you have these custom components installed:
+## 🛠️ Template Sensors
 
-1. **Mini Graph Card**: For consumption graphs
-   - HACS: `custom:mini-graph-card`
-   - Or manual installation
+The system creates these calculated sensors:
 
-2. **Grid Layout**: For dashboard layout
-   - HACS: `custom:grid-layout`
-   - Or manual installation
+### 3rd Floor Sensors
+- `sensor.3rd_floor_days_until_empty` - Days until tank is empty
+- `sensor.3rd_floor_water_usage_trend` - Usage trend (High/Normal/Low)
+- `sensor.3rd_floor_leak_severity` - Leak severity (Critical/Moderate/None)
 
-## Entity Names
+### 1st Floor Sensors
+- `sensor.1st_floor_days_until_empty` - Days until tank is empty
+- `sensor.1st_floor_water_usage_trend` - Usage trend (High/Normal/Low)
+- `sensor.1st_floor_leak_severity` - Leak severity (Critical/Moderate/None)
 
-The configuration expects these entities (created automatically by ESP32):
+## 🚨 Alert System
 
-### 3rd Floor Tank:
-- `sensor.water_level_3f`
-- `sensor.water_alert_tank_3f`
-- `input_number.tank_height_tank_3f`
-- `input_number.tank_diameter_tank_3f`
-- `input_number.empty_distance_tank_3f`
-- `input_number.full_distance_tank_3f`
-- `input_button.calibrate_sensor_tank_3f`
-- `input_number.low_level_threshold_tank_3f`
-- `input_number.rapid_leak_threshold_tank_3f`
-- `input_number.moderate_leak_threshold_tank_3f`
-- `input_number.high_consumption_threshold_tank_3f`
-- `input_number.leak_detection_threshold_tank_3f`
-- `input_number.alert_cooldown_tank_3f`
+### Alert Types
+- **Low Water Level**: When tank level drops below threshold
+- **Rapid Leak (15min)**: Critical leak detection
+- **Moderate Leak (30min)**: Moderate leak detection
+- **Daily Report**: Daily consumption summary
 
-### 1st Floor Tank:
-- `sensor.water_level_1f`
-- `sensor.water_alert_tank_1f`
-- `input_number.tank_height_tank_1f`
-- `input_number.tank_diameter_tank_1f`
-- `input_number.empty_distance_tank_1f`
-- `input_number.full_distance_tank_1f`
-- `input_button.calibrate_sensor_tank_1f`
-- `input_number.low_level_threshold_tank_1f`
-- `input_number.rapid_leak_threshold_tank_1f`
-- `input_number.moderate_leak_threshold_tank_1f`
-- `input_number.high_consumption_threshold_tank_1f`
-- `input_number.leak_detection_threshold_tank_1f`
-- `input_number.alert_cooldown_tank_1f`
+### Alert Channels
+- Persistent notifications in Home Assistant
+- Mobile app notifications (if configured)
 
-## Features
+## 📊 Dashboard
 
-### Automations
-- Low water level alerts
-- Rapid leak detection (15-minute intervals)
-- Moderate leak detection (30-minute intervals)
-- Daily consumption reports
-- Calibration notifications
+The system includes a comprehensive dashboard with:
+- Real-time water level graphs
+- Consumption monitoring
+- Alert status
+- Calibration controls
+- Quick actions
 
-### Template Sensors
-- Days until empty calculation
-- Water usage trend analysis
-- Leak severity classification
+Access the dashboard via the sidebar or navigate to `/lovelace/water-level`.
 
-### Dashboard Views
-- **Water Level Monitoring**: Real-time graphs and gauges
-- **Tank Calibration**: Setup and calibration interface
-- **Alert Monitoring**: Threshold configuration and alert status
+## 🔍 Troubleshooting
 
-## Troubleshooting
+### Common Issues
 
-1. **Configuration Errors**: Check YAML syntax in each file
-2. **Missing Entities**: Ensure ESP32 is running and connected
-3. **Dashboard Not Showing**: Verify custom components are installed
-4. **Automations Not Working**: Check entity names match your setup
+1. **Template Errors**: If you see template errors, ensure the water level sensors are properly configured and sending data.
 
-## Support
+2. **Missing Attributes**: The template sensors now handle missing attributes gracefully, but you may see "0" or "Normal" values until the sensors are properly calibrated.
 
-If you encounter issues:
-1. Check Home Assistant logs for errors
-2. Verify all entity names match your ESP32 configuration
-3. Ensure custom components are properly installed
-4. Restart Home Assistant after configuration changes 
+3. **Automation Not Working**: Check that the alert sensors (`sensor.water_alert_tank_3f` and `sensor.water_alert_tank_1f`) are being created by the Arduino sensors.
+
+### Debug Steps
+1. Check Home Assistant logs for specific error messages
+2. Verify sensor entities exist in Developer Tools > States
+3. Test template sensors in Developer Tools > Template
+4. Ensure Arduino sensors are connected and sending data
+
+## 📝 Configuration Notes
+
+- All template sensors use safe attribute access with `default()` filters
+- Automations include proper error handling for missing attributes
+- The system is designed to work even if some attributes are missing
+- Dashboard will show placeholder values until sensors are fully configured
+
+## 🔄 Updates
+
+This configuration is designed to work with the ESP32 water level sensor firmware. If you update the Arduino code, ensure the entity IDs and attributes match what's expected by this configuration. 
