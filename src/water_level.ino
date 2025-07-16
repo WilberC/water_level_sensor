@@ -18,19 +18,19 @@ bool forceConfigPortal = false;
 
 // HTTP Configuration
 const char* homeAssistantUrl = "https://domain.com";  // Your Home Assistant domain
-const char* sensorEntityId = "sensor.water_level_sensor";  // Entity ID for the sensor
+// Entity ID will be generated from deviceLocation: "sensor.water_level_" + deviceLocation
 
 // Device Configuration - Change these for each sensor
-const char* deviceName = "Water Level Sensor";  // Change to: "3rd Floor Tank" or "1st Floor Tank"
+const char* deviceName = "3rd Floor Tank";  // Change to: "3rd Floor Tank" or "1st Floor Tank"
 const char* deviceLocation = "tank_3f";  // Change to: "tank_3f" or "tank_1f"
 const char* deviceId = "water_sensor_3f";  // Change to: "water_sensor_3f" or "water_sensor_1f"
 
 // Custom parameters for WiFiManager
 WiFiManagerParameter custom_ha_url("ha_url", "Home Assistant URL", homeAssistantUrl, 100);
 WiFiManagerParameter custom_ha_token("ha_token", "Home Assistant Access Token", "", 200);
-WiFiManagerParameter custom_ha_entity("ha_entity", "Sensor Entity ID", sensorEntityId, 50);
 WiFiManagerParameter custom_device_name("device_name", "Device Name", deviceName, 50);
 WiFiManagerParameter custom_device_location("device_location", "Device Location", deviceLocation, 20);
+WiFiManagerParameter custom_device_id("device_id", "Device ID", deviceId, 30);
 
 // Calibration data
 struct CalibrationData {
@@ -108,6 +108,7 @@ void monitorWaterConsumption();
 void checkAlerts();
 void createAlertEntities();
 void sendAlert(String alertType, String message);
+void resetAlertStatus();
 void testUltrasonicSensor();
 
 void setup() {
@@ -308,9 +309,9 @@ void setupWiFi() {
   // Add custom parameters to WiFiManager
   wifiManager.addParameter(&custom_ha_url);
   wifiManager.addParameter(&custom_ha_token);
-  wifiManager.addParameter(&custom_ha_entity);
   wifiManager.addParameter(&custom_device_name);
   wifiManager.addParameter(&custom_device_location);
+  wifiManager.addParameter(&custom_device_id);
   
   // Configure WiFiManager settings
   wifiManager.setConfigPortalTimeout(180); // 3 minutes timeout
@@ -372,18 +373,18 @@ void setupWiFi() {
 void saveCustomParameters() {
   preferences.putString("ha_url", custom_ha_url.getValue());
   preferences.putString("ha_token", custom_ha_token.getValue());
-  preferences.putString("ha_entity", custom_ha_entity.getValue());
   preferences.putString("device_name", custom_device_name.getValue());
   preferences.putString("device_location", custom_device_location.getValue());
+  preferences.putString("device_id", custom_device_id.getValue());
   Serial.println("💾 Home Assistant parameters saved securely");
 }
 
 void loadCustomParameters() {
   String savedUrl = preferences.getString("ha_url", homeAssistantUrl);
   String savedToken = preferences.getString("ha_token", "");
-  String savedEntity = preferences.getString("ha_entity", sensorEntityId);
   String savedDeviceName = preferences.getString("device_name", deviceName);
   String savedDeviceLocation = preferences.getString("device_location", deviceLocation);
+  String savedDeviceId = preferences.getString("device_id", deviceId);
   
   if (savedUrl.length() > 0) {
     custom_ha_url.setValue(savedUrl.c_str(), 100);
@@ -399,12 +400,16 @@ void loadCustomParameters() {
     Serial.println("⚠️  No Home Assistant token found - configure in portal");
   }
   
-  if (savedEntity.length() > 0) {
-    custom_ha_entity.setValue(savedEntity.c_str(), 50);
-    Serial.println("📋 Loaded saved entity ID");
-  }
   custom_device_name.setValue(savedDeviceName.c_str(), 50);
   custom_device_location.setValue(savedDeviceLocation.c_str(), 20);
+  custom_device_id.setValue(savedDeviceId.c_str(), 30);
+  
+  // Show generated entity ID
+  String generatedEntityId = "sensor.water_level_" + savedDeviceLocation;
+  Serial.print("📋 Generated entity ID: ");
+  Serial.println(generatedEntityId);
+  Serial.print("📋 Device ID: ");
+  Serial.println(savedDeviceId);
 }
 
 bool connectToWiFi() {
@@ -476,9 +481,12 @@ bool sendToHomeAssistant() {
   // Get token and device info from preferences
   String haUrl = preferences.getString("ha_url", homeAssistantUrl);
   String token = preferences.getString("ha_token", "");
-  String entityId = preferences.getString("ha_entity", sensorEntityId);
-  String deviceName = preferences.getString("device_name", deviceName);
-  String deviceLocation = preferences.getString("device_location", deviceLocation);
+  String deviceNameStr = preferences.getString("device_name", deviceName);
+  String deviceLocationStr = preferences.getString("device_location", deviceLocation);
+  String deviceIdStr = preferences.getString("device_id", deviceId);
+  
+  // Generate entity ID from device location
+  String entityId = "sensor.water_level_" + deviceLocationStr;
   
   if (token.length() == 0) {
     Serial.println("❌ No Home Assistant token configured");
@@ -504,8 +512,9 @@ bool sendToHomeAssistant() {
   JsonObject attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "%";
   attributes["device_class"] = "water";
-  attributes["friendly_name"] = deviceName;
-  attributes["device_location"] = deviceLocation;
+  attributes["friendly_name"] = deviceNameStr;
+  attributes["device_location"] = deviceLocationStr;
+  attributes["device_id"] = deviceIdStr;
   attributes["distance_cm"] = currentData.distance;
   attributes["water_level_cm"] = currentData.waterLevel;
   attributes["volume_liters"] = currentData.volume;
@@ -742,7 +751,13 @@ void monitorWaterConsumption() {
 
 void checkAlerts() {
   static unsigned long lastAlertTime = 0;
+  static bool alertActive = false;
   unsigned long currentTime = millis();
+  
+  // Check if any alerts are currently active
+  bool anyAlertActive = consumption.lowLevelAlert || consumption.rapidLeakAlert || 
+                       consumption.moderateLeakAlert || consumption.highConsumptionAlert || 
+                       consumption.leakDetected;
   
   // Check cooldown period
   if (currentTime - lastAlertTime < (alerts.alertCooldownMinutes * 60000)) {
@@ -755,6 +770,7 @@ void checkAlerts() {
     sendAlert("low_level", message);
     consumption.lowLevelAlert = true;
     lastAlertTime = currentTime;
+    alertActive = true;
   } else if (currentData.percentage > alerts.lowLevelThreshold) {
     consumption.lowLevelAlert = false;
   }
@@ -765,6 +781,7 @@ void checkAlerts() {
     sendAlert("rapid_leak", message);
     consumption.rapidLeakAlert = true;
     lastAlertTime = currentTime;
+    alertActive = true;
   } else if (consumption.consumption15min <= alerts.rapidLeakThreshold) {
     consumption.rapidLeakAlert = false;
   }
@@ -775,6 +792,7 @@ void checkAlerts() {
     sendAlert("moderate_leak", message);
     consumption.moderateLeakAlert = true;
     lastAlertTime = currentTime;
+    alertActive = true;
   } else if (consumption.consumption30min <= alerts.moderateLeakThreshold) {
     consumption.moderateLeakAlert = false;
   }
@@ -785,6 +803,7 @@ void checkAlerts() {
     sendAlert("high_consumption", message);
     consumption.highConsumptionAlert = true;
     lastAlertTime = currentTime;
+    alertActive = true;
   } else if (consumption.hourlyConsumption <= alerts.highConsumptionThreshold) {
     consumption.highConsumptionAlert = false;
   }
@@ -795,8 +814,15 @@ void checkAlerts() {
     sendAlert("leak_detected", message);
     consumption.leakDetected = true;
     lastAlertTime = currentTime;
+    alertActive = true;
   } else if (consumption.hourlyConsumption <= alerts.leakDetectionThreshold) {
     consumption.leakDetected = false;
+  }
+  
+  // Reset alert status to normal if no alerts are active
+  if (alertActive && !anyAlertActive) {
+    resetAlertStatus();
+    alertActive = false;
   }
 }
 
@@ -809,12 +835,13 @@ void sendAlert(String alertType, String message) {
   // Send alert to Home Assistant
   String haUrl = preferences.getString("ha_url", homeAssistantUrl);
   String token = preferences.getString("ha_token", "");
-  String deviceLocation = preferences.getString("device_location", deviceLocation);
-  String deviceName = preferences.getString("device_name", deviceName);
+  String deviceLocationStr = preferences.getString("device_location", deviceLocation);
+  String deviceNameStr = preferences.getString("device_name", deviceName);
+  String deviceIdStr = preferences.getString("device_id", deviceId);
   if (token.length() == 0) return;
   
   HTTPClient http;
-  String url = haUrl + "/api/states/sensor.water_alert_" + deviceLocation;
+  String url = haUrl + "/api/states/sensor.water_alert_" + deviceLocationStr;
   
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
@@ -824,7 +851,7 @@ void sendAlert(String alertType, String message) {
   doc["state"] = alertType;
   
   JsonObject attributes = doc.createNestedObject("attributes");
-  attributes["friendly_name"] = deviceName + " - Water Alert";
+  attributes["friendly_name"] = deviceNameStr + " - Water Alert Status";
   attributes["alert_message"] = message;
   attributes["alert_type"] = alertType;
   attributes["water_level"] = currentData.percentage;
@@ -834,43 +861,121 @@ void sendAlert(String alertType, String message) {
   
   String jsonString;
   serializeJson(doc, jsonString);
-  http.POST(jsonString);
+  int httpResponseCode = http.POST(jsonString);
+  
+  if (httpResponseCode > 0) {
+    Serial.print("✅ Alert sent successfully. Response code: ");
+    Serial.println(httpResponseCode);
+  } else {
+    Serial.print("❌ Failed to send alert. Error code: ");
+    Serial.println(httpResponseCode);
+  }
+  
+  http.end();
+}
+
+void resetAlertStatus() {
+  Serial.println("✅ Resetting alert status to normal");
+  
+  // Send normal status to Home Assistant
+  String haUrl = preferences.getString("ha_url", homeAssistantUrl);
+  String token = preferences.getString("ha_token", "");
+  String deviceLocationStr = preferences.getString("device_location", deviceLocation);
+  String deviceNameStr = preferences.getString("device_name", deviceName);
+  String deviceIdStr = preferences.getString("device_id", deviceId);
+  if (token.length() == 0) return;
+  
+  HTTPClient http;
+  String url = haUrl + "/api/states/sensor.water_alert_" + deviceLocationStr;
+  
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("Authorization", "Bearer " + token);
+  
+  StaticJsonDocument<512> doc;
+  doc["state"] = "normal";
+  
+  JsonObject attributes = doc.createNestedObject("attributes");
+  attributes["friendly_name"] = deviceNameStr + " - Water Alert Status";
+  attributes["alert_message"] = "No alerts";
+  attributes["alert_type"] = "normal";
+  attributes["water_level"] = currentData.percentage;
+  attributes["current_volume"] = currentData.volume;
+  attributes["hourly_consumption"] = consumption.hourlyConsumption;
+  attributes["timestamp"] = millis();
+  
+  String jsonString;
+  serializeJson(doc, jsonString);
+  int httpResponseCode = http.POST(jsonString);
+  
+  if (httpResponseCode > 0) {
+    Serial.print("✅ Alert status reset successfully. Response code: ");
+    Serial.println(httpResponseCode);
+  } else {
+    Serial.print("❌ Failed to reset alert status. Error code: ");
+    Serial.println(httpResponseCode);
+  }
+  
   http.end();
 }
 
 void createAlertEntities() {
   String haUrl = preferences.getString("ha_url", homeAssistantUrl);
   String token = preferences.getString("ha_token", "");
-  String deviceLocation = preferences.getString("device_location", deviceLocation);
-  String deviceName = preferences.getString("device_name", deviceName);
+  String deviceLocationStr = preferences.getString("device_location", deviceLocation);
+  String deviceNameStr = preferences.getString("device_name", deviceName);
+  String deviceIdStr = preferences.getString("device_id", deviceId);
   if (token.length() == 0) return;
   
   HTTPClient http;
   
-  // Create alert threshold inputs
-  String url = haUrl + "/api/states/input_number.low_level_threshold_" + deviceLocation;
+  // Create the main alert sensor entity
+  String url = haUrl + "/api/states/sensor.water_alert_" + deviceLocationStr;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + token);
   
   StaticJsonDocument<512> doc;
-  doc["state"] = alerts.lowLevelThreshold;
+  doc["state"] = "normal"; // Default state
   
   JsonObject attributes = doc.createNestedObject("attributes");
-  attributes["unit_of_measurement"] = "%";
-  attributes["friendly_name"] = deviceName + " - Low Level Threshold";
-  attributes["min"] = 5;
-  attributes["max"] = 50;
-  attributes["step"] = 1;
-  attributes["mode"] = "slider";
+  attributes["friendly_name"] = deviceNameStr + " - Water Alert Status";
+  attributes["alert_message"] = "No alerts";
+  attributes["alert_type"] = "normal";
+  attributes["water_level"] = 0;
+  attributes["current_volume"] = 0;
+  attributes["hourly_consumption"] = 0;
+  attributes["timestamp"] = millis();
   
   String jsonString;
   serializeJson(doc, jsonString);
   http.POST(jsonString);
   http.end();
   
+  // Create alert threshold inputs
+  url = haUrl + "/api/states/input_number.low_level_threshold_" + deviceLocationStr;
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("Authorization", "Bearer " + token);
+  
+  doc.clear();
+  doc["state"] = alerts.lowLevelThreshold;
+  
+  attributes = doc.createNestedObject("attributes");
+  attributes["unit_of_measurement"] = "%";
+  attributes["friendly_name"] = deviceNameStr + " - Low Level Threshold";
+  attributes["min"] = 5;
+  attributes["max"] = 50;
+  attributes["step"] = 1;
+  attributes["mode"] = "slider";
+  
+  jsonString = "";
+  serializeJson(doc, jsonString);
+  http.POST(jsonString);
+  http.end();
+  
   // Rapid leak threshold (15 minutes)
-  url = haUrl + "/api/states/input_number.rapid_leak_threshold_" + deviceLocation;
+  url = haUrl + "/api/states/input_number.rapid_leak_threshold_" + deviceLocationStr;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + token);
@@ -880,7 +985,7 @@ void createAlertEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "L/15min";
-  attributes["friendly_name"] = deviceName + " - Rapid Leak Threshold (15min)";
+  attributes["friendly_name"] = deviceNameStr + " - Rapid Leak Threshold (15min)";
   attributes["min"] = 1;
   attributes["max"] = 20;
   attributes["step"] = 0.5;
@@ -892,7 +997,7 @@ void createAlertEntities() {
   http.end();
   
   // Moderate leak threshold (30 minutes)
-  url = haUrl + "/api/states/input_number.moderate_leak_threshold_" + deviceLocation;
+  url = haUrl + "/api/states/input_number.moderate_leak_threshold_" + deviceLocationStr;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + token);
@@ -902,7 +1007,7 @@ void createAlertEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "L/30min";
-  attributes["friendly_name"] = deviceName + " - Moderate Leak Threshold (30min)";
+  attributes["friendly_name"] = deviceNameStr + " - Moderate Leak Threshold (30min)";
   attributes["min"] = 2;
   attributes["max"] = 30;
   attributes["step"] = 1;
@@ -914,7 +1019,7 @@ void createAlertEntities() {
   http.end();
   
   // High consumption threshold
-  url = haUrl + "/api/states/input_number.high_consumption_threshold_" + deviceLocation;
+  url = haUrl + "/api/states/input_number.high_consumption_threshold_" + deviceLocationStr;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + token);
@@ -924,7 +1029,7 @@ void createAlertEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "L/hour";
-  attributes["friendly_name"] = deviceName + " - High Consumption Threshold";
+  attributes["friendly_name"] = deviceNameStr + " - High Consumption Threshold";
   attributes["min"] = 10;
   attributes["max"] = 200;
   attributes["step"] = 5;
@@ -936,7 +1041,7 @@ void createAlertEntities() {
   http.end();
   
   // Leak detection threshold
-  url = haUrl + "/api/states/input_number.leak_detection_threshold_" + deviceLocation;
+  url = haUrl + "/api/states/input_number.leak_detection_threshold_" + deviceLocationStr;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + token);
@@ -946,7 +1051,7 @@ void createAlertEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "L/hour";
-  attributes["friendly_name"] = deviceName + " - Leak Detection Threshold";
+  attributes["friendly_name"] = deviceNameStr + " - Leak Detection Threshold";
   attributes["min"] = 1;
   attributes["max"] = 50;
   attributes["step"] = 1;
@@ -958,7 +1063,7 @@ void createAlertEntities() {
   http.end();
   
   // Alert cooldown
-  url = haUrl + "/api/states/input_number.alert_cooldown_" + deviceLocation;
+  url = haUrl + "/api/states/input_number.alert_cooldown_" + deviceLocationStr;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + token);
@@ -968,7 +1073,7 @@ void createAlertEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "minutes";
-  attributes["friendly_name"] = deviceName + " - Alert Cooldown";
+  attributes["friendly_name"] = deviceNameStr + " - Alert Cooldown";
   attributes["min"] = 5;
   attributes["max"] = 120;
   attributes["step"] = 5;
@@ -1021,14 +1126,15 @@ void createCalibrationEntities() {
   // Create input helpers for calibration in Home Assistant
   String haUrl = preferences.getString("ha_url", homeAssistantUrl);
   String token = preferences.getString("ha_token", "");
-  String deviceLocation = preferences.getString("device_location", deviceLocation);
-  String deviceName = preferences.getString("device_name", deviceName);
+  String deviceLocationStr = preferences.getString("device_location", deviceLocation);
+  String deviceNameStr = preferences.getString("device_name", deviceName);
+  String deviceIdStr = preferences.getString("device_id", deviceId);
   if (token.length() == 0) return;
   
   HTTPClient http;
   
   // Create tank height input
-  String url = haUrl + "/api/states/input_number.tank_height_" + deviceLocation;
+  String url = haUrl + "/api/states/input_number.tank_height_" + deviceLocationStr;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + token);
@@ -1038,7 +1144,7 @@ void createCalibrationEntities() {
   
   JsonObject attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "cm";
-  attributes["friendly_name"] = deviceName + " - Tank Height";
+  attributes["friendly_name"] = deviceNameStr + " - Tank Height";
   attributes["min"] = 10;
   attributes["max"] = 500;
   attributes["step"] = 1;
@@ -1050,7 +1156,7 @@ void createCalibrationEntities() {
   http.end();
   
   // Create empty distance input
-  url = haUrl + "/api/states/input_number.empty_distance_" + deviceLocation;
+  url = haUrl + "/api/states/input_number.empty_distance_" + deviceLocationStr;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + token);
@@ -1060,7 +1166,7 @@ void createCalibrationEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "cm";
-  attributes["friendly_name"] = deviceName + " - Empty Distance";
+  attributes["friendly_name"] = deviceNameStr + " - Empty Distance";
   attributes["min"] = 1;
   attributes["max"] = 50;
   attributes["step"] = 0.5;
@@ -1072,7 +1178,7 @@ void createCalibrationEntities() {
   http.end();
   
   // Create full distance input
-  url = haUrl + "/api/states/input_number.full_distance_" + deviceLocation;
+  url = haUrl + "/api/states/input_number.full_distance_" + deviceLocationStr;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + token);
@@ -1082,7 +1188,7 @@ void createCalibrationEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "cm";
-  attributes["friendly_name"] = deviceName + " - Full Distance";
+  attributes["friendly_name"] = deviceNameStr + " - Full Distance";
   attributes["min"] = 50;
   attributes["max"] = 200;
   attributes["step"] = 0.5;
@@ -1094,7 +1200,7 @@ void createCalibrationEntities() {
   http.end();
   
   // Create tank diameter input
-  url = haUrl + "/api/states/input_number.tank_diameter_" + deviceLocation;
+  url = haUrl + "/api/states/input_number.tank_diameter_" + deviceLocationStr;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + token);
@@ -1104,7 +1210,7 @@ void createCalibrationEntities() {
   
   attributes = doc.createNestedObject("attributes");
   attributes["unit_of_measurement"] = "cm";
-  attributes["friendly_name"] = deviceName + " - Tank Diameter";
+  attributes["friendly_name"] = deviceNameStr + " - Tank Diameter";
   attributes["min"] = 10;
   attributes["max"] = 200;
   attributes["step"] = 1;
@@ -1116,7 +1222,7 @@ void createCalibrationEntities() {
   http.end();
   
   // Create calibration button
-  url = haUrl + "/api/states/input_button.calibrate_sensor_" + deviceLocation;
+  url = haUrl + "/api/states/input_button.calibrate_sensor_" + deviceLocationStr;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", "Bearer " + token);
@@ -1125,7 +1231,7 @@ void createCalibrationEntities() {
   doc["state"] = "idle";
   
   attributes = doc.createNestedObject("attributes");
-  attributes["friendly_name"] = deviceName + " - Calibrate Sensor";
+  attributes["friendly_name"] = deviceNameStr + " - Calibrate Sensor";
   
   jsonString = "";
   serializeJson(doc, jsonString);
